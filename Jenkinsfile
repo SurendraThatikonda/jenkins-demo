@@ -5,21 +5,30 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                echo 'Checking out Java source code'
+                echo 'Source code checked out from GitHub'
             }
         }
 
-        stage('Compile') {
+        stage('Build with Maven') {
             steps {
-                bat 'javac HelloJenkins.java'
+                bat 'mvn clean package'
             }
         }
 
-        stage('Execute') {
+        stage('Run Java Application') {
             steps {
-                bat 'java HelloJenkins'
+                bat 'java -cp target\\jenkins-practice-1.0-SNAPSHOT.jar HelloJenkins'
             }
         }
 
+    }
+
+    post {
+        success {
+            echo 'Maven build completed successfully!'
+        }
+        failure {
+            echo 'Build failed. Please check the console output.'
+        }
     }
 }
