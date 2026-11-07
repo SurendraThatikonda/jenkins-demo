@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -6,7 +5,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                echo 'Source code checked out from GitHub'
+                echo 'Checking out source code from GitHub'
             }
         }
 
@@ -35,6 +34,52 @@ pipeline {
             }
         }
 
+        stage('Deploy to Nexus') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'nexus-credentials',
+                        usernameVariable: 'NEXUS_USER',
+                        passwordVariable: 'NEXUS_PASSWORD'
+                    )
+                ]) {
+                    script {
+                        def xmlEscape = { value ->
+                            value.replace('&', '&amp;')
+                                 .replace('<', '&lt;')
+                                 .replace('>', '&gt;')
+                                 .replace('"', '&quot;')
+                                 .replace("'", '&apos;')
+                        }
+
+                        writeFile file: 'nexus-settings.xml',
+                            text: """<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0">
+    <servers>
+        <server>
+            <id>nexus-snapshots</id>
+            <username>${xmlEscape(env.NEXUS_USER)}</username>
+            <password>${xmlEscape(env.NEXUS_PASSWORD)}</password>
+        </server>
+        <server>
+            <id>nexus-releases</id>
+            <username>${xmlEscape(env.NEXUS_USER)}</username>
+            <password>${xmlEscape(env.NEXUS_PASSWORD)}</password>
+        </server>
+    </servers>
+</settings>
+"""
+
+                        try {
+                            bat 'mvn -B -s nexus-settings.xml deploy -DskipTests'
+                        } finally {
+                            bat 'if exist nexus-settings.xml del /q nexus-settings.xml'
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Run Application') {
             steps {
                 bat 'java -cp target\\jenkins-practice-1.0-SNAPSHOT.jar HelloJenkins'
@@ -44,15 +89,16 @@ pipeline {
 
     post {
         always {
-            junit 'target/surefire-reports/*.xml'
+            junit allowEmptyResults: true,
+                  testResults: 'target/surefire-reports/*.xml'
         }
 
         success {
-            echo 'Build, testing, and artifact archiving completed successfully!'
+            echo 'Build, tests and Nexus deployment completed successfully!'
         }
 
         failure {
-            echo 'Build failed. Please check the console output.'
+            echo 'Pipeline failed. Check the console output.'
         }
     }
 }
