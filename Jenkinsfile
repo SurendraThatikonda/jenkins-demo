@@ -9,26 +9,40 @@ pipeline {
             }
         }
 
-        stage('Build with Maven') {
+        stage('Build') {
             steps {
-                bat 'mvn clean package'
+                bat 'mvn clean compile'
             }
         }
 
-        stage('Run Java Application') {
+        stage('Unit Testing') {
+            steps {
+                bat 'mvn test'
+            }
+        }
+
+        stage('Package') {
+            steps {
+                bat 'mvn package -DskipTests'
+            }
+        }
+
+        stage('Run Application') {
             steps {
                 bat 'java -cp target\\jenkins-practice-1.0-SNAPSHOT.jar HelloJenkins'
             }
         }
-
     }
 
     post {
+        always {
+            junit 'target/surefire-reports/*.xml'
+        }
         success {
-            echo 'Maven build completed successfully!'
+            echo 'Build and unit tests completed successfully!'
         }
         failure {
-            echo 'Build failed. Please check the console output.'
+            echo 'Build or unit tests failed. Check the console output.'
         }
     }
 }
