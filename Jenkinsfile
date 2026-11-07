@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -27,6 +28,13 @@ pipeline {
             }
         }
 
+        stage('Archive Artifact') {
+            steps {
+                archiveArtifacts artifacts: 'target/*.jar',
+                                 fingerprint: true
+            }
+        }
+
         stage('Run Application') {
             steps {
                 bat 'java -cp target\\jenkins-practice-1.0-SNAPSHOT.jar HelloJenkins'
@@ -38,11 +46,13 @@ pipeline {
         always {
             junit 'target/surefire-reports/*.xml'
         }
+
         success {
-            echo 'Build and unit tests completed successfully!'
+            echo 'Build, testing, and artifact archiving completed successfully!'
         }
+
         failure {
-            echo 'Build or unit tests failed. Check the console output.'
+            echo 'Build failed. Please check the console output.'
         }
     }
 }
